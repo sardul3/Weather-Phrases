@@ -19,25 +19,29 @@ url = "http://mesonet.k-state.edu/rest/stationdata"
 
 #calls all functions and send each ones data to the final dict
 def main():
-    #try:
+    try:
         ## Add back a new statement for when there is no available data
-    csv_hour = pull_hour_data(url)
-    #print(csv_hour)
-    hour_dict = parse_hour_data(csv_hour)
-    ##print("************ Hour Dict ***********")
-    ##print(hour_dict)
-    ##print("####### Temp Data ########")
-    temp_data = temp_hour(hour_dict)
-    ##print(temp_data)
-    hum_data = hum_hour(hour_dict)
-    wind_data = wind_hour(hour_dict)
-    precip_data = precip_hour(hour_dict)
-    dict_builder(temp_data, hum_data, wind_data, precip_data)
-    os.system("sudo cp phrases.json /var/www/html/weather/phrases.json")
-    #precip = precip_day_count("Cheyenne")
-    #except:
-    #    print("error")
-    #    exit()
+        csv_hour = pull_hour_data(url)
+        if "No data" in str(csv_hour):
+            exit()
+        #print(csv_hour)
+        hour_dict = parse_hour_data(csv_hour)
+        #print("************ Hour Dict ***********")
+        #print(hour_dict)
+        ##print("####### Temp Data ########")
+        temp_data = temp_hour(hour_dict)
+        ##print(temp_data)
+        hum_data = hum_hour(hour_dict)
+        wind_data = wind_hour(hour_dict)
+        precip_data = precip_hour(hour_dict)
+        dict_builder(temp_data, hum_data, wind_data, precip_data)
+        os.system("sudo cp phrases.json /var/www/html/weather/phrases.json")
+        #precip = precip_day_count("Cheyenne")
+    except:
+        print("error")
+        tb = sys.exc_info()
+        sys.stderr.write( str(tb) + "\n")
+        exit()
 
 #look into parallel processing
 
@@ -113,28 +117,6 @@ def pull_hour_data(url):
     print(r.text)
     return r.text
 
-
-
-##find way to do a daily check for the month for precip data
-
-
-### fix to day data and make new timestamps
-
-#Not currently being used, pulls same data as pull_hour_data but for day
-def pull_day_data(url):
-    now = datetime_now()
-    day = day_ago(now)
-    day = day[:10] + "0000"
-    #print(day)
-    start = now.strftime('%Y%m%d%H%M%S')
-    #swapped station for network, EBW and BBW may need to be added later
-    #params = { "stn": "Manhattan", "int": "day", "t_start": str(day), "t_end": str(start), "vars":"PRECIP,TEMP2MAVG,WSPD2MAVG,RELHUM2MAVG"}
-    params = { "net": "KSRE", "int": "day", "t_start": str(day), "t_end": str(start), "vars":"PRECIP,TEMP2MAVG,WSPD2MAVG,RELHUM2MAVG"}
-    r = None
-    r = requests.get( url, params = params )
-    print(r.text)
-    return r.text
-
 #takes the csv and splits the headers
 # adds data to arrays, puts all information in a dictionary to be returned
 def parse_hour_data(csv_hour):
@@ -143,6 +125,7 @@ def parse_hour_data(csv_hour):
     #print(csv_header)
     if "No data available" in str(csv_header):
         return "None"
+        exit()
     csv_lines = []
     x = csv_hour.split("\n")
     for line in x:
@@ -181,76 +164,23 @@ def parse_hour_data(csv_hour):
     return hour_dict
 
 
-#Separate data out into different arrays
-
-
-def parse_day_data(csv_day):
-
-    csv_header = csv_day.split("\n")[0]
-    csv_lines = []
-    x = csv_day.split("\n")
-    for line in x:
-        csv_lines.append(line)
-
-        #### Add solar radiation stuff for cloudy coverage  ###
-
-        #headers index
-        headers = csv_header.split(",")
-        stat_index = headers.index( "STATION" )
-        time_index = headers.index("TIMESTAMP")
-        temp_index = headers.index("TEMP2MAVG")
-        hum_index = headers.index("RELHUM2MAVG")
-        precip_index = headers.index("PRECIP")
-        wind_index = headers.index("WSPD2MAVG")
-
-        #separates headers from lines and groups each line into an array to be sorted
-        stations = []
-        time_day = []
-        temp_day = []
-        hum_day = []
-        precip_day = []
-        wind_day = []
-        for i in range(1,len(csv_lines)):
-            stations.append(csv_lines[i].split(",")[stat_index])
-            time_day.append(csv_lines[i].split(",")[time_index])
-            temp_day.append(csv_lines[i].split(",")[temp_index])
-            hum_day.append(csv_lines[i].split(",")[hum_index])
-            precip_day.append(csv_lines[i].split(",")[precip_index])
-            wind_day.append(csv_lines[i].split(",")[wind_index])
-        #print("day array")
-        #print(str(stations))
-        if "No data available" in str(csv_header):
-            day_dict = {"station": stations, "time": time_day, "temp": "None", "humidity": "None", "precip": "None", "wind": "None"}
-        else:
-            day_dict = {"station": stations, "time": time_day, "temp": temp_day, "humidity": hum_day, "precip": precip_day, "wind": wind_day}
-        #print(str(day_dict))
-        return day_dict
-
-
-#temp in celcius - if wanting fahrenheit: (Celcius * (9/5)) + 32
-
 ## Phrase arrays, when temp is matched on the 1-3 scale, a phrase is randomly chosen from the array and sent to a 'temp' section in an output dictionary. 
 
 
-###         Tmperature Options         ### 
+###         Temperature Options         ### 
 
 
 #extremely hot temp
-very_hot = ["it's Africa hot", "Who turned the thermostat to 'Hell'", "Let's boil some eggs on the sidewalk"]
+very_hot = ["it's Africa hot", "Who turned the thermostat to 'Hell'", "Let's boil some eggs on the sidewalk", "Better hit the pool!", "Yay for flip-flop weather!", "Bikini weather", "Turn the AC on!"]
 
 #hot temp
-warm_hot = ["Put the bikini on", "Time to hit the pool", "Turn the AC on!", "Pull out the short sleeves", "It's a warm day"]
+warm_hot = ["Too early for cut-off jeans?", "Turn the AC on!", "Pull out the short sleeves", "It's a warm day"]
 
 #dictionary of array types, number is randomly generated between 0 and value's array length, then called and placed in a 'temp section in output dict #
 
 
-#decide whether to keep mid_cool on list or whether to combine it into cold. figure out how to order cool and cold data
-
 #cooler, but not coat weather
-cool_temp = ["Sweater weather", "Temperature's falling like a rock", "May want a sweatshirt today", "Jacket recommended", "Grab your coat...it's chilly", "Crank the heat"]
-
-#snow cold -- show probably check precip before using these
-#starting from "put your mittens on.." in frozen_temp
+cool_temp = ["Sweater weather", "Temperature's falling like a rock", "May want a sweatshirt today", "Jacket recommended", "Grab your coat...it's chilly", "Crank the heat!", "Turn the AC off!"]
 
 #Freezing temp, ice, below zero
 frozen_temp = ["Antarctica called...they want their weather back", "Does shivering count as excerise?", "Being this cold should be illegal", "it's so cold, polar bears aren't even going outside", "Put your mittens on, it's freezing", "Better wear your snow boots", "Don't burn your hand doing the boiling water trick", "Time to shovel the driveway", "tired of winter, next season please..", "Defrosting...Ain't nobody got time for that"]
@@ -297,8 +227,8 @@ def temp_hour(hour_dict):
                 t_d = {"phrase": phrase, "priority": "1", "data": data[x], "station": station[x]}
                 print(t_d)
             else:
-                if float(data[x]) >= float(26):
-                    if float(data[x]) > float(95):
+                if float(data[x]) >= float(29):
+                    if float(data[x]) > float(35):
                         #print("super hot " + str(data[x]))
                         phrase = str(temperature['very hot'][random.randrange(0, len(very_hot))])
                         #print(phrase)
@@ -311,14 +241,14 @@ def temp_hour(hour_dict):
                         t_d = {"phrase": phrase, "priority": "2", "data": data[x], "station": station[x]}
                         print(t_d)
                 else:
-                    if (float(data[x]) > float(18)) and (float(data[x]) < float(26)):
+                    if (float(data[x]) >= float(18)) and (float(data[x]) < float(29)):
                         #print("warm " + str(data[x]))
                         phrase = str(temperature['hot'][random.randrange(0, len(warm_hot))])
                         #print(phrase)
                         t_d = {"phrase": phrase, "priority": "3", "data": data[x], "station": station[x]}
                         print(t_d)
                     else:
-                        if (float(data[x]) > float(0)) and (float(data[x]) < float(16)):
+                        if (float(data[x]) > float(0)) and (float(data[x]) < float(18)):
                             if (float(data[x]) < float(10)):
                                 #print("chilly " + str(data[x]))
                                 phrase = str(temperature['cold'][random.randrange(0, len(cool_temp))])
@@ -441,7 +371,7 @@ def hum_hour(hour_dict):
                 print(h_d)
             else:
 
-                if float(data[x]) < float(31):
+                if float(data[x]) < float(25):
                     if (float(temp[x]) <= float(4.0)):
                         #print("dry cold " + str(data[x]))
                         phrase = str(humidity_winter['dry'][random.randrange(0,len(dry_hum))])
@@ -453,7 +383,7 @@ def hum_hour(hour_dict):
                         h_d = {"phrase": phrase, "priority": "2", "data": data[x], "station": station[x]}
                         print(h_d)
                 else:
-                    if float(data[x]) >= float(46):
+                    if float(data[x]) >= float(70):
                         #print("very humid " + str(data[x]))
                         if(float(temp[x]) > float(26.8)):
                             phrase = str(humidity['humid'][random.randrange(0,len(very_humid))])
@@ -483,11 +413,11 @@ def hum_hour(hour_dict):
 #if more than 10 -very windy
 #check within an hour interval to detemine wind
 
-very_windy = ["Tie down the trampoline", "Windy as $#@&", "Yes! Leaves are moving to the neighbors", "Gone with the wind", "Bad day to wear a skirt", "Bad hair day"]
+very_windy = ["Tie down the trampoline", "Windy as $#@&", "Yes! Leaves are moving to the neighbors", "Gone with the wind", "Bad day to wear a skirt", "Bad hair day", "Prevent any sparks! It's windy", "Hold onto your hat"]
 
 low_wind = ["Yes! Leaves are moving to the neighbors", "Lost in the wind...", "Bad hair day", "Hold onto your hat", "Watch your skirt alert"]
 
-no_wind = ["Stagnant", "Great spray day", "Good hair day", "Still as Christmas Eve"]
+no_wind = ["Stagnant", "Great spray day", "Good hair day", "Still as Christmas Eve", "Stagnant"]
 
 
 wind = {"very windy": very_windy, "some wind": low_wind, "no wind": no_wind}
@@ -627,9 +557,9 @@ def precip_hour(hour_dict):
                 else:
                     phrase = str(precip['none'])
                     if int(days) >= int(8):
-                        phrase = "Needed: Rain (" + str(days) + " days without rainfall)"
+                        phrase = "We need rain: (" + str(days) + " days without rainfall)"
                     if (int(days) >= int(10)) and (int(days) <= int(20)):
-                        phrase = "Badly needed: Rain (" + str(days) + " days without rainfall)"
+                        phrase = "We badly need rain: (" + str(days) + " days without rainfall)"
                     if (int(days) >= int(20)) and (int(days) <= int(30)):
                         phrase = "Please, Please, Please bring us some rain (" + str(days) + " days without rainfall)"
                     if (int(days) >= 30):
